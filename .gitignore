@@ -1,0 +1,11 @@
+# Ignore everything
+*
+# Don't ignore directories, so we can recurse into them
+!*/
+# pero si ignorame el .ipynb_checkpoints
+.ipynb_checkpoints
+# Don't ignore .gitignore and *.foo files
+!.gitignore
+!*.ipynb
+!*.py
+!*.txt
