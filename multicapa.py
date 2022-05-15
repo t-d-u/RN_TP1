@@ -34,11 +34,10 @@ args=parser.parse_args()
 # }}}
 
 # datos {{{
-# data = pd.read_csv(args.filename_datos,header=None)
-data = args.filename_datos
+data = pd.read_csv(args.filename_datos,header=None)
+# data = args.filename_datos
 
-print(data)
-# data = np.random.permutation(np.array(data))
+data = np.random.permutation(np.array(data))
 x = ((data)[:,1:])
 
 # matriz de correlación{{{
