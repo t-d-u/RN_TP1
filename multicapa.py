@@ -220,3 +220,5 @@ plt.ylabel('costo')
 plt.legend()
 plt.show()
 # }}}
+
+# print(f'W=np.array({W})')
