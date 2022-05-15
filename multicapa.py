@@ -202,7 +202,7 @@ while t<args.epocas:
         dw = backprop_momento(Y,z_batch,W,dw)
         W = adaptation(W,dw)
 
-    costo_epoca.append((c)/(P/B))
+    # costo_epoca.append((c)/(P/B))
     cost_nueva_lista_epoca.append(np.mean(cost_nueva_lista_batch))
 
     cost_nueva_lista_batch=[]
