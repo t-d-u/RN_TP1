@@ -178,8 +178,8 @@ lr = args.lr
 costo_epoca=[]
 error_val=[]
 t=0
-# cost_nueva_lista_batch=[]
-# cost_nueva_lista_epoca=[]
+cost_nueva_lista_batch=[]
+cost_nueva_lista_epoca=[]
 # }}}
 
 # batch train{{{
@@ -195,17 +195,17 @@ while t<args.epocas:
 
         Y = forward(x_batch,W)
 
-        c+=estimation(z_batch,Y[L-1])
-        # cost_nueva_lista_batch.append(estimation(z_batch,Y[L-1]))
+        # c+=estimation(z_batch,Y[L-1])
+        cost_nueva_lista_batch.append(estimation(z_batch,Y[L-1]))
         # estimation del batch
 
         dw = backprop_momento(Y,z_batch,W,dw)
         W = adaptation(W,dw)
 
     costo_epoca.append((c)/(P/B))
-    # cost_nueva_lista_epoca.append(np.mean(cost_nueva_lista_batch))
+    cost_nueva_lista_epoca.append(np.mean(cost_nueva_lista_batch))
 
-    # cost_nueva_lista_batch=[]
+    cost_nueva_lista_batch=[]
     error_val.append(estimation(z_v,forward(x_v,W,True)))
     t+=1
 # }}}
@@ -221,8 +221,8 @@ print(f'proporcion correctas valid: {proporcion}')
 
 # plot {{{
 plt.figure()
-plt.plot(costo_epoca)
-# plt.plot(cost_nueva_lista_epoca)
+# plt.plot(costo_epoca)
+plt.plot(cost_nueva_lista_epoca)
 plt.plot(error_val,label='valid')
 plt.xlabel('épocas')
 plt.ylabel('costo')
