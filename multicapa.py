@@ -25,6 +25,8 @@ parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
 parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0,type=float)
 parser.add_argument('--epocas', default=8000,type=int)
+parser.add_argument('--exportar',default=True,help='si el usuario desea \
+                    exportar el modelo entrenado al archivo filename_modelo.npz')
 # parser.add_argument('--B',help='batch size',default='P')
 args=parser.parse_args()
 # }}}
@@ -239,7 +241,8 @@ plt.show()
 # }}}
 
 # {{{ exportar modelo (lista de pesos W) a archivo filename_modelo
-np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
+if args.exportar:
+    np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
 
 '''
 
