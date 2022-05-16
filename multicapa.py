@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
 
-# observaciones {{{
-'''
-el de una sola capa da hasta 90% de validación con sigmoidea,
-pero alrededor de 70 con tanh.
-'''
-# }}}
-
 # imports {{{
 import argparse,sys
 import numpy as np
@@ -26,21 +19,45 @@ parser.add_argument('--filename_datos',default='tp1_ej1_training.csv',help='el\
                     utilizando un .csv con los targets en la primera columna')
 parser.add_argument('--filename_modelo',default='weights')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
-                    separados por coma, sin espacios ni []',default='20')
+                    separados por coma, sin espacios ni []',default='5')
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
 parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0,type=float)
-parser.add_argument('--epocas', default=10000,type=int)
+parser.add_argument('--epocas', default=8000,type=int)
 # parser.add_argument('--B',help='batch size',default='P')
 args=parser.parse_args()
 # }}}
 
 # datos {{{
 data = pd.read_csv(args.filename_datos,header=None)
-# data = args.filename_datos
 
-data = np.random.permutation(np.array(data))
-x = ((data)[:,1:])
+'para obtener datos aleatorizados'
+def datos(data):
+
+    data = np.random.permutation(np.array(data))
+    x = ((data)[:,1:])
+
+
+    x = x.astype(float)
+    x = (x-x.mean(0))/np.square(x.std(0))
+
+    if args.activation=='sigmoid':
+        z = np.array([1 if dato=='M' else 0 for dato in data[:,0:1]])
+
+    elif args.activation=='tanh':
+        z = np.array([1 if dato=='M' else -1 for dato in data[:,0:1]])
+
+    z = z.reshape(410,1)
+
+    x_v = x[300:]
+    x_train = x[:300]
+
+    z_v = z[300:]
+    z_train = z[:300]
+    return x,x_train,x_v,z_train,z_v
+x,x_train,x_v,z_train,z_v = datos(data)
+
+# }}}
 
 # matriz de correlación{{{
 # matriz_corr = pd.DataFrame(data[:,1:].astype(float)).corr()
@@ -48,26 +65,6 @@ x = ((data)[:,1:])
 # sns.heatmap(matriz_corr,annot=True)
 # plt.show()
 
-# }}}
-
-# x = np.delete(data[:,1:],obj=6,axis=1)
-x = x.astype(float)
-x = (x-x.mean(0))/np.square(x.std(0))
-# x = (x-x.mean(axis=0))/abs(x.max(axis=0) - x.min(axis=0))
-
-if args.activation=='sigmoid':
-    z = np.array([1 if dato=='M' else 0 for dato in data[:,0:1]])
-
-elif args.activation=='tanh':
-    z = np.array([1 if dato=='M' else -1 for dato in data[:,0:1]])
-
-z = z.reshape(410,1)
-
-x_v = x[300:]
-x_train = x[:300]
-
-z_v = z[300:]
-z_train = z[:300]
 # }}}
 
 # arq {{{
@@ -180,8 +177,8 @@ lr = args.lr
 costo_epoca=[]
 error_val=[]
 t=0
-cost_nueva_lista_batch=[]
-cost_nueva_lista_epoca=[]
+cost_batch=[]
+cost_epoca=[]
 # }}}
 
 # batch train{{{
@@ -198,16 +195,16 @@ while t<args.epocas:
         Y = forward(x_batch,W)
 
         # c+=estimation(z_batch,Y[L-1])
-        cost_nueva_lista_batch.append(estimation(z_batch,Y[L-1]))
+        cost_batch.append(estimation(z_batch,Y[L-1]))
         # estimation del batch
 
         dw = backprop_momento(Y,z_batch,W,dw)
         W = adaptation(W,dw)
 
     # costo_epoca.append((c)/(P/B))
-    cost_nueva_lista_epoca.append(np.mean(cost_nueva_lista_batch))
+    cost_epoca.append(np.mean(cost_batch))
 
-    cost_nueva_lista_batch=[]
+    cost_batch=[]
     error_val.append(estimation(z_v,forward(x_v,W,True)))
     t+=1
 # }}}
@@ -215,16 +212,24 @@ while t<args.epocas:
 # }}}
 
 # valid {{{
-vector_valid = forward(x_v,W,predict=True)
-vector_valid = forward(x_v,W,predict=True)
-proporcion = (z_v==np.round(vector_valid)).sum()/len(vector_valid)
-print(f'proporcion correctas valid: {proporcion}')
+'''
+esta función puede ser utilizada para evaluar el modelo entregado con los datos
+de testeo (separando objetivos de variables independientes en "datos_eval" y
+"objetivo")
+
+'''
+def evaluacion(datos_eval,pesos,objetivo):
+    output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
+    proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
+                       len(output_modelo_entrenado)
+    print(f'proporcion correctas: {proporcion}')
+validacion = evaluacion(x_v,W,z_v)
 # }}}
 
 # plot {{{
 plt.figure()
 # plt.plot(costo_epoca)
-plt.plot(cost_nueva_lista_epoca)
+plt.plot(cost_epoca)
 plt.plot(error_val,label='valid')
 plt.xlabel('épocas')
 plt.ylabel('costo')
@@ -237,7 +242,7 @@ np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
 
 '''
 
-para usar las matrices que queden almacenadas en filename_modelo.npz luego
+para cargar las matrices que queden almacenadas en filename_modelo.npz luego
 de entrenar un modelo nuevo:
 
 np.load('filename_modelo.npz',allow_pickle=True)['W']
