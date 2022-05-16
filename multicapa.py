@@ -21,7 +21,9 @@ import seaborn as sns
 
 parser=argparse.ArgumentParser(formatter_class=\
         argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--filename_datos',default='tp1_ej1_training.csv')
+parser.add_argument('--filename_datos',default='tp1_ej1_training.csv',help='el\
+                    procesamiento de los datos en el script fue realizado \
+                    utilizando un .csv con los targets en la primera columna')
 parser.add_argument('--filename_modelo',default='weights')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
                     separados por coma, sin espacios ni []',default='20')
@@ -230,4 +232,16 @@ plt.legend()
 plt.show()
 # }}}
 
-# print(f'W=np.array({W})')
+# {{{ exportar modelo (lista de pesos W) a archivo filename_modelo
+np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
+
+'''
+
+para usar las matrices que queden almacenadas en filename_modelo.npz luego
+de entrenar un modelo nuevo:
+
+np.load('filename_modelo.npz',allow_pickle=True)['W']
+
+
+'''
+# }}}
