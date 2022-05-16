@@ -241,8 +241,11 @@ plt.show()
 # }}}
 
 # {{{ exportar modelo (lista de pesos W) a archivo filename_modelo
-if args.exportar:
+if args.exportar==True:
     np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
+else:
+    pass
+
 
 '''
 
