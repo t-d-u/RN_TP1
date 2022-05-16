@@ -17,7 +17,8 @@ parser=argparse.ArgumentParser(formatter_class=\
 parser.add_argument('--filename_datos',default='tp1_ej1_training.csv',help='el\
                     procesamiento de los datos en el script fue realizado \
                     utilizando un .csv con los targets en la primera columna')
-parser.add_argument('--filename_modelo',default='weights')
+parser.add_argument('--filename_modelo',default='weights',help='nombre del \
+                    archivo que es exportado y contiene el modelo entrenado')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
                     separados por coma, sin espacios ni []',default='5')
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
