@@ -225,7 +225,7 @@ def evaluacion(datos_eval,pesos,objetivo):
     output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
     proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
                        len(output_modelo_entrenado)
-    print(f'proporcion correctas: {proporción de aciertos}')
+    print(f'proporción de aciertos: {proporcion}')
 validacion = evaluacion(x_v,W,z_v)
 # }}}
 
