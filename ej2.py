@@ -57,21 +57,11 @@ x,x_train,x_v,z_train,z_v = datos(data)
 
 # }}}
 
-# matriz de correlación{{{
-# matriz_corr = pd.DataFrame(data[:,1:].astype(float)).corr()
-# plt.figure()
-# sns.heatmap(matriz_corr,annot=True)
-# plt.show()
-
-# }}}
-
 # arq {{{
 P = x_train.shape[0]
 S = [int(i) for i in args.S.split(',')]
 S.insert(0,x.shape[1])
-S.append(1)
-# S = [x.shape[1],20,10,5,15,1] #89%
-# S = [x.shape[1],20,1]
+S.append(2) #dos outputs
 L = len(S)
 
 # }}}
@@ -105,9 +95,11 @@ def forward(Xh,W,predict=False):# {{{
          np.zeros((Xh.shape[0],value)) for index,value in enumerate(S)]
     Y_temp = Xh
 
-    for k in range(1,L):
+    for k in range(1,L-1):
         Y[k-1][:] = bias_add(Y_temp)
         Y_temp = activation(Y[k-1]@W[k])
+    Y[L-2] = bias_add(Y_temp)
+    Y_temp = Y[L-2]@W[L-1]
 
     Y[L-1] = Y_temp
     if predict:
@@ -143,8 +135,9 @@ alfa = args.alfa_momento
 
 def backprop_momento(Y,z,W,dw_previo):# {{{
 
-    E_output = z - Y[L-1]
-    dY_output = d_activation(Y[L-1])
+    E_output = z - Y[L-1] #resta coord a coord de dos matrices de mx2
+    # dY_output = d_activation(Y[L-1])
+    dY_ouput =
     D_output = E_output*dY_output
     D = D_output
 
