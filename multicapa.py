@@ -214,7 +214,7 @@ while t<args.epocas:
 
 # }}}
 
-# valid {{{
+# evaluacion {{{
 '''
 esta función puede ser utilizada para evaluar el modelo entregado con los datos
 de testeo (separando objetivos de variables independientes en "datos_eval" y
@@ -225,7 +225,7 @@ def evaluacion(datos_eval,pesos,objetivo):
     output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
     proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
                        len(output_modelo_entrenado)
-    print(f'proporcion correctas: {proporcion}')
+    print(f'proporcion correctas: {proporción de aciertos}')
 validacion = evaluacion(x_v,W,z_v)
 # }}}
 
