@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 # }}}
 
-# argumentos {{{z
+# argumentos {{{
 
 parser=argparse.ArgumentParser(formatter_class=\
         argparse.ArgumentDefaultsHelpFormatter)
@@ -33,36 +33,57 @@ args=parser.parse_args()
 
 # datos {{{
 data = pd.read_csv(args.filename_datos,header=None)
-
 data = np.random.permutation(np.array(data))
-def min_max_norm(datos):
-    max_cols = datos.max(axis=0)
-    min_cols = datos.min(axis=0)
-    data = (datos - min_cols)/(max_cols - min_cols)
-    return data,max_cols,min_cols
-data_normalizada,max_cols,min_cols = min_max_norm(data)
-#pedir las columnas sirve para usarlas para normalizar el output
-#de la red con los mins y maxs del objetivo:
-maximos_objetivo = max_cols[-2:]
-minimos_objetivo = min_cols[-2:]
-#ojo: estoy usando el mismo max y min para train y valid.
 
-def train_valid_split(datos):
+# {{{ separar en train y valid
+def train_valid_split(datos):# {{{
     datos_train = datos[:int(3*len(datos)/4),:]
     datos_valid = datos[int(3*len(datos)/4):,:]
-    return datos_train, datos_valid
-datos_train, datos_valid = train_valid_split(data_normalizada)
+    return datos_train, datos_valid# }}}
 
-x_train = datos_train[:,:-2]
-z_train = datos_train[:,-2:]
+data_train, data_valid = train_valid_split(data)
 
-x_v = datos_valid[:,:-2]
-z_v = datos_valid[:,-2:]
-objetivo_desnormalizado = z_v*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+x_train = data_train[:,:-2]
+z_train = data_train[:,-2:]
 
+x_v = data_valid[:,:-2]
+z_v = data_valid[:,-2:]
+# }}}
 
+# {{{ normalizar
+def min_max_norm(datos,minimo,maximo):# {{{
+    data_normalizada = (datos - minimo)/(maximo - minimo)
+    return data_normalizada# }}}
 
+# {{{ normalizacion datos de entrenamiento
+data_train_norm = min_max_norm(data_train,data_train.min(axis=0),\
+                               data_train.max(axis=0))
+x_train_norm = data_train_norm[:,:-2]
+z_train_norm = data_train_norm[:,-2:]
+# }}}
+
+#para normalizar los outputs de la red en cada paso forward, sirve definir:# {{{
+minimos_z_train = data_train.min(axis=0)[-2:]
+maximos_z_train = data_train.max(axis=0)[-2:]
+#donde data_train.min(axis=0) es vector de 10 coordenadas, en cada una
+#contiene el mínimo de la columna.# }}}
+
+# {{{ normalizacion datos de validacion
+data_valid_norm = min_max_norm(data_valid,data_valid.min(axis=0),\
+                               data_valid.max(axis=0))
+x_v_norm = data_valid_norm[:,:-2]
+z_v_norm = data_valid_norm[:,-2:]
+# }}}
+
+#para comparar en evaluacion los outputs desnorm. con objetivos sin normalizar,
+#sirve tener definidos:# {{{
+minimos_z_v = data_valid.min(axis=0)[-2:]
+maximos_z_v = data_valid.max(axis=0)[-2:]# }}}
+
+def desnormalizar(datos,minimo,maximo):# {{{
+    return datos*(maximo - minimo) + minimo
+
+# }}}
 # }}}
 
 # arq {{{
@@ -110,8 +131,9 @@ def forward(Xh,W,predict=False):# {{{
         Y_temp = activation(Y[k-1]@W[k])
     Y[L-2][:] = bias_add(Y_temp)
     Y_temp = Y[L-2]@W[L-1] #unidad lineal
-    Y[L-1] = (Y_temp - minimos_objetivo)/(maximos_objetivo-minimos_objetivo)
-    #output normalizado
+    # Y[L-1] = (Y_temp - minimos_objetivo)/(maximos_objetivo-minimos_objetivo)
+    Y[L-1] = min_max_norm(Y_temp,minimos_z_train,maximos_z_train)
+    #output normalizado con los minimos y maximos de los objetivos
     if predict:
         return Y[L-1]
 
@@ -193,14 +215,13 @@ while t<args.epocas:
 
         Y = forward(x_batch,W)
 
-        # c+=estimation(z_batch,Y[L-1])
-        output_desnormalizado = Y[L-1]*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+        output_desnorm = desnormalizar(Y[L-1],minimos_z_train,maximos_z_train)
 
         # cost_batch.append(estimation(z_batch,Y[L-1]))
-        z_batch_desnorm = z_batch*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
-        cost_batch.append(estimation(z_batch_desnorm,output_desnormalizado))
+        # z_batch_desnorm = z_batch*(maximos_objetivo - \
+                            # minimos_objetivo) + minimos_objetivo
+        # z_batch_desnorm = desnormalizar(z_batch,minimos_z_train,maximos_z_train)
+        cost_batch.append(estimation(z_batch,output_desnorm))
 
         # estimation del batch
 
@@ -212,10 +233,13 @@ while t<args.epocas:
 
     cost_batch=[]
     # error_val.append(estimation(z_v,forward(x_v,W,True)))
-    valid_desnorm = forward(x_v,W,True)*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
 
-    error_val.append(estimation(objetivo_desnormalizado,valid_desnorm))
+    # valid_desnorm = forward(x_v,W,True)*(maximos_objetivo - \
+                            # minimos_objetivo) + minimos_objetivo
+    valid_desnorm = desnormalizar(forward(x_v,W,True),minimos_z_v,\
+                                  maximos_z_v)
+
+    error_val.append(estimation(z_v,valid_desnorm))
     # yvalid = forward(x_v,W,True)
     # print(yvalid)
     t+=1
@@ -230,16 +254,14 @@ de testeo (separando objetivos de variables independientes en "datos_eval" y
 "objetivo")
 
 '''
-def evaluacion(datos_eval,pesos,objetivo):
-    output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
-    # proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
-                       # len(output_modelo_entrenado)
-    output_desnormalizado = output_modelo_entrenado*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
-    objetivo_desnormalizado = objetivo*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+#depende de lo que le doy a evaluacion voy a estar queriendo que evalue normalizado o no
+def evaluacion(x_eval,pesos,objetivo):
+    output_modelo_entrenado = forward(x_eval,pesos,predict=True)
+    #osea el modelo entrenado te da una respuesta cuando le das datos de eval
+    # output_desnormalizado = desnormalizar(output_modelo_entrenado,maximos_z_v,\
+                                          # minimos_z_v)
 
-    error= estimation(objetivo_desnormalizado,output_desnormalizado)
+    error= estimation(objetivo,output_modelo_entrenado)
     # error = estimation(objetivo,output_modelo_entrenado)
     return error
 
