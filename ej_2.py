@@ -58,6 +58,8 @@ z_train = datos_train[:,-2:]
 
 x_v = datos_valid[:,:-2]
 z_v = datos_valid[:,-2:]
+objetivo_desnormalizado = z_v*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
 
 
 
@@ -192,7 +194,13 @@ while t<args.epocas:
         Y = forward(x_batch,W)
 
         # c+=estimation(z_batch,Y[L-1])
-        cost_batch.append(estimation(z_batch,Y[L-1]))
+        output_desnormalizado = Y[L-1]*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+        # cost_batch.append(estimation(z_batch,Y[L-1]))
+        z_batch_desnorm = z_batch*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+        cost_batch.append(estimation(z_batch_desnorm,output_desnormalizado))
 
         # estimation del batch
 
@@ -203,7 +211,11 @@ while t<args.epocas:
     cost_epoca.append(np.mean(cost_batch))
 
     cost_batch=[]
-    error_val.append(estimation(z_v,forward(x_v,W,True)))
+    # error_val.append(estimation(z_v,forward(x_v,W,True)))
+    valid_desnorm = forward(x_v,W,True)*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+    error_val.append(estimation(objetivo_desnormalizado,valid_desnorm))
     # yvalid = forward(x_v,W,True)
     # print(yvalid)
     t+=1
@@ -222,7 +234,13 @@ def evaluacion(datos_eval,pesos,objetivo):
     output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
     # proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
                        # len(output_modelo_entrenado)
-    error = estimation(objetivo,output_modelo_entrenado)
+    output_desnormalizado = output_modelo_entrenado*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+    objetivo_desnormalizado = objetivo*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+    error= estimation(objetivo_desnormalizado,output_desnormalizado)
+    # error = estimation(objetivo,output_modelo_entrenado)
     return error
 
 '''
