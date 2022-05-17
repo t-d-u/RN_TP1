@@ -211,7 +211,7 @@ while t<args.epocas:
     for batch in range(0,P,B):
 
         x_batch = x_train_norm[H[ batch : batch+B ]]
-        z_batch = z_train[H[ batch : batch+B ]]
+        z_batch = z_train_norm[H[ batch : batch+B ]]
 
         Y = forward(x_batch,W)
 
