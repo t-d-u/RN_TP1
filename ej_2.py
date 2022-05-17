@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 # }}}
 
-# argumentos {{{
+# argumentos {{{z
 
 parser=argparse.ArgumentParser(formatter_class=\
         argparse.ArgumentDefaultsHelpFormatter)
@@ -20,11 +20,11 @@ parser.add_argument('--filename_datos',default='tp1_ej2_training.csv',help=\
 parser.add_argument('--filename_modelo',default='weights_ej_2',help='nombre \
                     del archivo exportado que contiene el modelo entrenado')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
-                    separados por coma, sin espacios ni []',default='5')
+                    separados por coma, sin espacios ni []',default='2')
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
-parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0.9,type=float)
-parser.add_argument('--epocas', default=8000,type=int)
+parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0,type=float)
+parser.add_argument('--epocas', default=20,type=int)
 parser.add_argument('--exportar',default=True,help='si el usuario desea \
                     exportar el modelo entrenado al archivo filename_modelo.npz')
 # parser.add_argument('--B',help='batch size',default='P')
@@ -223,7 +223,20 @@ def evaluacion(datos_eval,pesos,objetivo):
     # proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
                        # len(output_modelo_entrenado)
     error = estimation(objetivo,output_modelo_entrenado)
+    return error
+
+'''
+la validación en este caso consiste en hacer un promedio de los errores
+cuadrados de cada patrón. es necesario hacerlo con los datos desnormalizados.
+'''
+# datos_train_originales, datos_valid_originales = train_valid_split(data)
+# x_v_originales = datos_valid_originales[:,:-2]
+# z_v_originales = datos_valid_originales[:,-2:]
+# validacion = evaluacion(x_v_originales,W,z_v_originales)
+
+#con los datos sin normalizar:
 validacion = evaluacion(x_v,W,z_v)
+print(validacion)
 
 # }}}
 
