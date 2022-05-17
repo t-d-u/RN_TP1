@@ -34,6 +34,10 @@ args=parser.parse_args()
 # datos {{{
 data = pd.read_csv(args.filename_datos,header=None)
 
+def train_valid_split(datos):
+    datos_train = datos[:int(3*len(datos)/4),:]
+    datos_valid = datos[int(3*len(datos)/4):,:]
+    return datos_train, datos_valid
 'para obtener datos aleatorizados'
 def datos(data):
 
@@ -52,11 +56,15 @@ def datos(data):
 
     z = z.reshape(410,1)
 
-    x_v = x[300:]
-    x_train = x[:300]
+    # x_v = x[300:]
+    x_v = x[int(3*len(x)/4):]
+    # x_train = x[:300]
+    x_train = x[:int(3*len(x)/4)]
 
-    z_v = z[300:]
-    z_train = z[:300]
+    # z_v = z[300:]
+    z_v = z[int(3*len(z)/4):]
+    # z_train = z[:300]
+    z_train = z[:int(3*len(z)/4)]
     return x,x_train,x_v,z_train,z_v
 x,x_train,x_v,z_train,z_v = datos(data)
 

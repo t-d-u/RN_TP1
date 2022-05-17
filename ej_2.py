@@ -236,7 +236,7 @@ cuadrados de cada patrón. es necesario hacerlo con los datos desnormalizados.
 
 #con los datos sin normalizar:
 validacion = evaluacion(x_v,W,z_v)
-print(validacion)
+print(f'validacion con datos no normalizados: {validacion}')
 
 # }}}
 
