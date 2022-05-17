@@ -10,21 +10,21 @@ import pandas as pd
 import seaborn as sns
 # }}}
 
-# argumentos {{{
+# argumentos {{{z
 
 parser=argparse.ArgumentParser(formatter_class=\
         argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--filename_datos',default='tp1_ej2_training.csv',help='el\
-                    procesamiento de los datos en el script fue realizado \
-                    utilizando un .csv con targets en las últimas 2 columnas')
-parser.add_argument('--filename_modelo',default='weights',help='nombre del \
-                    archivo que es exportado y contiene el modelo entrenado')
+parser.add_argument('--filename_datos',default='tp1_ej2_training.csv',help=\
+                    'los datos son procesados considerando un .csv con los \
+                    outputs en las últimas dos columnas')
+parser.add_argument('--filename_modelo',default='weights_ej_2',help='nombre \
+                    del archivo exportado que contiene el modelo entrenado')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
-                    separados por coma, sin espacios ni []',default='5')
+                    separados por coma, sin espacios ni []',default='2')
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
 parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0,type=float)
-parser.add_argument('--epocas', default=8000,type=int)
+parser.add_argument('--epocas', default=20,type=int)
 parser.add_argument('--exportar',default=True,help='si el usuario desea \
                     exportar el modelo entrenado al archivo filename_modelo.npz')
 # parser.add_argument('--B',help='batch size',default='P')
@@ -32,36 +32,46 @@ args=parser.parse_args()
 # }}}
 
 # datos {{{
-data = pd.read_csv(args.filename_datos,header=None,sep='\t')
-data = np.array(data) #para no tener que andar indexando con .iloc
-'para obtener datos aleatorizados'
-def datos(data):
+data = pd.read_csv(args.filename_datos,header=None)
 
-    data = np.random.permutation(np.array(data))
-    x = (data[:,:-2])
+data = np.random.permutation(np.array(data))
+def min_max_norm(datos):
+    max_cols = datos.max(axis=0)
+    min_cols = datos.min(axis=0)
+    data = (datos - min_cols)/(max_cols - min_cols)
+    return data,max_cols,min_cols
+data_normalizada,max_cols,min_cols = min_max_norm(data)
+#pedir las columnas sirve para usarlas para normalizar el output
+#de la red con los mins y maxs del objetivo:
+maximos_objetivo = max_cols[-2:]
+minimos_objetivo = min_cols[-2:]
+#ojo: estoy usando el mismo max y min para train y valid.
+
+def train_valid_split(datos):
+    datos_train = datos[:int(3*len(datos)/4),:]
+    datos_valid = datos[int(3*len(datos)/4):,:]
+    return datos_train, datos_valid
+datos_train, datos_valid = train_valid_split(data_normalizada)
+
+x_train = datos_train[:,:-2]
+z_train = datos_train[:,-2:]
+
+x_v = datos_valid[:,:-2]
+z_v = datos_valid[:,-2:]
+objetivo_desnormalizado = z_v*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
 
 
-    x = x.astype(float)
-    x = (x-x.mean(0))/np.square(x.std(0))
-
-    z = data[:,-2:] #z[0] es los dos outputs del 1er patron
-                    #z[:,0] el 1er output de todos los patrones
-
-    x_v = x[400:]
-    x_train = x[:400]
-
-    z_v = z[400:]
-    z_train = z[:400]
-    return x,x_train,x_v,z_train,z_v
-x,x_train,x_v,z_train,z_v = datos(data)
 
 # }}}
 
 # arq {{{
 P = x_train.shape[0]
 S = [int(i) for i in args.S.split(',')]
-S.insert(0,x.shape[1])
-S.append(2) #dos outputs
+S.insert(0,x_train.shape[1])
+S.append(2)
+# S = [x.shape[1],20,10,5,15,1] #89%
+# S = [x.shape[1],20,1]
 L = len(S)
 
 # }}}
@@ -95,13 +105,13 @@ def forward(Xh,W,predict=False):# {{{
          np.zeros((Xh.shape[0],value)) for index,value in enumerate(S)]
     Y_temp = Xh
 
-    for k in range(1,L-1):
+    for k in range(1,L-1): #en vez de L, asi hago la ultima unidad lineal
         Y[k-1][:] = bias_add(Y_temp)
         Y_temp = activation(Y[k-1]@W[k])
-    Y[L-2] = bias_add(Y_temp)
-    Y_temp = Y[L-2]@W[L-1]
-
-    Y[L-1] = Y_temp
+    Y[L-2][:] = bias_add(Y_temp)
+    Y_temp = Y[L-2]@W[L-1] #unidad lineal
+    Y[L-1] = (Y_temp - minimos_objetivo)/(maximos_objetivo-minimos_objetivo)
+    #output normalizado
     if predict:
         return Y[L-1]
 
@@ -134,13 +144,11 @@ alfa = args.alfa_momento
 # }}}
 
 def backprop_momento(Y,z,W,dw_previo):# {{{
-
-    E_output = z - Y[L-1] #resta coord a coord de dos matrices de mx2
+    E_output = z - Y[L-1]
     # dY_output = d_activation(Y[L-1])
-    dY_ouput =
+    dY_output = 1 #unidad lineal
     D_output = E_output*dY_output
     D = D_output
-
     for k in range(L-1,0,-1):
         dw[k][:] = lr * (Y[k-1].T@D) + alfa*dw_previo[k]
         E = D@W[k].T
@@ -186,7 +194,14 @@ while t<args.epocas:
         Y = forward(x_batch,W)
 
         # c+=estimation(z_batch,Y[L-1])
-        cost_batch.append(estimation(z_batch,Y[L-1]))
+        output_desnormalizado = Y[L-1]*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+        # cost_batch.append(estimation(z_batch,Y[L-1]))
+        z_batch_desnorm = z_batch*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+        cost_batch.append(estimation(z_batch_desnorm,output_desnormalizado))
+
         # estimation del batch
 
         dw = backprop_momento(Y,z_batch,W,dw)
@@ -196,7 +211,13 @@ while t<args.epocas:
     cost_epoca.append(np.mean(cost_batch))
 
     cost_batch=[]
-    error_val.append(estimation(z_v,forward(x_v,W,True)))
+    # error_val.append(estimation(z_v,forward(x_v,W,True)))
+    valid_desnorm = forward(x_v,W,True)*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+    error_val.append(estimation(objetivo_desnormalizado,valid_desnorm))
+    # yvalid = forward(x_v,W,True)
+    # print(yvalid)
     t+=1
 # }}}
 
@@ -211,10 +232,30 @@ de testeo (separando objetivos de variables independientes en "datos_eval" y
 '''
 def evaluacion(datos_eval,pesos,objetivo):
     output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
-    proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
-                       len(output_modelo_entrenado)
-    print(f'proporción de aciertos: {proporcion}')
+    # proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
+                       # len(output_modelo_entrenado)
+    output_desnormalizado = output_modelo_entrenado*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+    objetivo_desnormalizado = objetivo*(maximos_objetivo - \
+                            minimos_objetivo) + minimos_objetivo
+
+    error= estimation(objetivo_desnormalizado,output_desnormalizado)
+    # error = estimation(objetivo,output_modelo_entrenado)
+    return error
+
+'''
+la validación en este caso consiste en hacer un promedio de los errores
+cuadrados de cada patrón. es necesario hacerlo con los datos desnormalizados.
+'''
+# datos_train_originales, datos_valid_originales = train_valid_split(data)
+# x_v_originales = datos_valid_originales[:,:-2]
+# z_v_originales = datos_valid_originales[:,-2:]
+# validacion = evaluacion(x_v_originales,W,z_v_originales)
+
+#con los datos sin normalizar:
 validacion = evaluacion(x_v,W,z_v)
+print(f'validacion con datos no normalizados: {validacion}')
+
 # }}}
 
 # plot {{{
