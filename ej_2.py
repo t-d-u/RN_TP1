@@ -210,7 +210,7 @@ while t<args.epocas:
     H = np.random.permutation(P)
     for batch in range(0,P,B):
 
-        x_batch = x_train[H[ batch : batch+B ]]
+        x_batch = x_train_norm[H[ batch : batch+B ]]
         z_batch = z_train[H[ batch : batch+B ]]
 
         Y = forward(x_batch,W)
@@ -221,7 +221,7 @@ while t<args.epocas:
         # z_batch_desnorm = z_batch*(maximos_objetivo - \
                             # minimos_objetivo) + minimos_objetivo
         # z_batch_desnorm = desnormalizar(z_batch,minimos_z_train,maximos_z_train)
-        cost_batch.append(estimation(z_batch,output_desnorm))
+        cost_batch.append(estimation(z_train,output_desnorm))
 
         # estimation del batch
 
