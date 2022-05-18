@@ -34,12 +34,19 @@ args=parser.parse_args()
 # datos {{{
 data = pd.read_csv(args.filename_datos,header=None)
 
-def train_valid_split(datos):
+def train_valid_split(datos):# {{{
     datos_train = datos[:int(3*len(datos)/4),:]
     datos_valid = datos[int(3*len(datos)/4):,:]
-    return datos_train, datos_valid
-'para obtener datos aleatorizados'
-def datos(data):
+    return datos_train, datos_valid# }}}
+
+def min_max_norm(datos,minimo,maximo):# {{{
+    data_normalizada = (datos - minimo)/(maximo - minimo)
+    return data_normalizada# }}}
+
+
+'para obtener datos aleatorizados llamando a la funcion'
+
+def datos(data):  # {{{
 
     data = np.random.permutation(np.array(data))
     x = ((data)[:,1:])
@@ -47,6 +54,9 @@ def datos(data):
 
     x = x.astype(float)
     x = (x-x.mean(0))/np.square(x.std(0))
+    # x = min_max_norm(x,x.min(axis=0),x.max(axis=0))
+
+
 
     if args.activation=='sigmoid':
         z = np.array([1 if dato=='M' else 0 for dato in data[:,0:1]])
@@ -63,6 +73,7 @@ def datos(data):
     z_train = z[:int(3*len(z)/4)]
     return x,x_train,x_v,z_train,z_v
 x,x_train,x_v,z_train,z_v = datos(data)
+# }}}
 
 # }}}
 
@@ -235,11 +246,13 @@ validacion = evaluacion(x_v,W,z_v)
 # plot {{{
 plt.figure()
 # plt.plot(costo_epoca)
-plt.plot(cost_epoca)
-plt.plot(error_val,label='valid')
+plt.plot(cost_epoca,linewidth=4)
+plt.plot(error_val,label='valid',linewidth=4)
 plt.xlabel('épocas')
+plt.xticks(fontsize=20)
 plt.ylabel('costo')
-plt.legend()
+plt.yticks(fontsize=20)
+plt.legend(prop={'size': 30})
 plt.show()
 # }}}
 
