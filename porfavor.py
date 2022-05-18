@@ -279,27 +279,17 @@ while t<args.epocas:
 # evaluacion {{{
 '''
 esta función puede ser utilizada para evaluar el modelo entregado con los datos
-de testeo (separando objetivos de variables independientes en "datos_eval" y
-"objetivo")
-
+de testeo (separando objetivos de variables independientes en "x_eval" y
+"objetivo_eval"). El output de la función evaluacion llamada con el test set
+se puede comparar con el output de la función llamada con el set de validación.
 '''
-def evaluacion(datos_eval,pesos,objetivo):
-    output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
-    error= estimation(objetivo,output_modelo_entrenado)
-    return error
+def evaluacion(x_eval,pesos,objetivo_eval):
+    output_modelo_entrenado = forward(x_eval,pesos,predict=True)
+    error_cuadrado_promedio = estimation(objetivo_eval,output_modelo_entrenado)
+    return error_cuadrado_promedio
 
-'''
-la validación en este caso consiste en hacer un promedio de los errores
-cuadrados de cada patrón. es necesario hacerlo con los datos desnormalizados.
-'''
-# datos_train_originales, datos_valid_originales = train_valid_split(data)
-# x_v_originales = datos_valid_originales[:,:-2]
-# z_v_originales = datos_valid_originales[:,-2:]
-# validacion = evaluacion(x_v_originales,W,z_v_originales)
-
-#con los datos sin normalizar:
 validacion = evaluacion(x_v_norm,W,z_v)
-print(f'validacion con datos no normalizados: {validacion}')
+print(f'validacion con outputs no normalizados: {validacion}')
 
 # }}}
 
