@@ -25,7 +25,7 @@ parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
 parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0,type=float)
 parser.add_argument('--epocas', default=20,type=int)
-parser.add_argument('--exportar',default=True,help='si el usuario desea \
+parser.add_argument('--exportar',default=False,help='si el usuario desea \
                     exportar el modelo entrenado al archivo filename_modelo.npz')
 # parser.add_argument('--B',help='batch size',default='P')
 args=parser.parse_args()
@@ -78,37 +78,6 @@ def desnormalizar(datos,minimos,maximos):
     return datos*(maximos - minimos) + minimos
 
 
-# }}}
-
-'''el bardo anterior que en realidad anda bien'''
-#def min_max_norm(datos):# {{{
-#    max_cols = datos.max(axis=0)
-#    min_cols = datos.min(axis=0)
-#    data = (datos - min_cols)/(max_cols - min_cols)
-#    return data,max_cols,min_cols
-#data_normalizada,max_cols,min_cols = min_max_norm(data)
-##pedir las columnas sirve para usarlas para normalizar el output
-##de la red con los mins y maxs del objetivo:
-#maximos_objetivo = max_cols[-2:]
-#minimos_objetivo = min_cols[-2:]
-##ojo: estoy usando el mismo max y min para train y valid.
-#
-#
-#def desnormalizar(datos,minimos,maximos):
-#    return datos*(maximos - minimos) + minimos
-#
-#def train_valid_split(datos):
-#    datos_train = datos[:int(3*len(datos)/4),:]
-#    datos_valid = datos[int(3*len(datos)/4):,:]
-#    return datos_train, datos_valid
-#datos_train, datos_valid = train_valid_split(data_normalizada)
-#
-#x_train = datos_train[:,:-2]
-#z_train = datos_train[:,-2:]
-#
-#x_v = datos_valid[:,:-2]
-#z_v = datos_valid[:,-2:]
-#objetivo_desnormalizado = desnormalizar(z_v,minimos_objetivo,maximos_objetivo)
 # }}}
 
 
@@ -232,9 +201,17 @@ cost_epoca=[]
 
 # batch train{{{
 
-# while t<300000:
+'''
+ambos objetivos tienen un desvío estándar y rangos de valores muy similares,
+calculados con:
+z_train.std(0)
+z_train.min(0)
+z_train.max(0)
+Esto puede ser utilizado para determinar el corte del entrenamiento: cuando el
+error medio sea al menos menor que el desvío estándar.
+'''
+
 while t<args.epocas:
-    c = 0
     H = np.random.permutation(P)
     for batch in range(0,P,B):
 
@@ -244,33 +221,24 @@ while t<args.epocas:
 
         Y = forward(x_batch_norm,W)
 
-        '''
-        a continuación desnormalizo el output del forward con los mismos mins y
-        maxs con los que normalicé, y calculo error con z_batch no normalizados
-        '''
-        # output_desnormalizado = desnormalizar(Y[L-1],minimos_z_train,\
-                                # maximos_z_train)
-        output_desnormalizado = forward(x_batch_norm,W,True)
+        output_train = forward(x_batch_norm,W,True) #no normalizado
 
-        #guardo el error no normalizado
-        cost_batch.append(estimation(z_batch,output_desnormalizado))
+        #guardo el error cuadrado medio no normalizado del batch
+        cost_batch.append(estimation(z_batch,output_train))
 
         dw = backprop_momento(Y,z_batch_norm,W,dw)
         W = adaptation(W,dw)
 
-    cost_epoca.append(np.mean(cost_batch))
+    cost_epoca.append(np.mean(cost_batch)) #media de los errores cuadrados
+                                           #medios de cada batch
 
     cost_batch=[]
-    '''
-    a continuación hago un paso forward normalizando el output de la red
-    con los mins y maxs de z_v
-    desnormalizo el output de la red en la validación con los
-    mins y maxs de z_v
-    '''
-    # output_valid = desnormalizar(forward(x_v,W,True),minimos_z_v,maximos_z_v)
+
+    #a continuación un paso forward obteniendo outputs sin normalizar
     output_valid = forward(x_v_norm,W,True)
 
     error_val.append(estimation(z_v,output_valid))
+
     t+=1
 # }}}
 
@@ -278,18 +246,43 @@ while t<args.epocas:
 
 # evaluacion {{{
 '''
-esta función puede ser utilizada para evaluar el modelo entregado con los datos
-de testeo (separando objetivos de variables independientes en "x_eval" y
-"objetivo_eval"). El output de la función evaluacion llamada con el test set
-se puede comparar con el output de la función llamada con el set de validación.
+el uso de estas funciones con datos de testeo y las matrices exportadas del
+entrenamiento se ejemplifica al final del script.
 '''
-def evaluacion(x_eval,pesos,objetivo_eval):
+
+
+'''
+La siguiente función puede ser utilizada para evaluar el modelo entregado con
+los datos de testeo (separando objetivos de variables independientes en "x_eval"
+y "objetivo_eval") con inputs normalizados y objetivos no normalizados, dado que
+el output de la función es el error cuadrado promedio medido con outputs de la
+red (y objetivos) no normalizados.
+'''
+def evaluacion(x_eval,pesos,objetivo_eval):# {{{
     output_modelo_entrenado = forward(x_eval,pesos,predict=True)
     error_cuadrado_promedio = estimation(objetivo_eval,output_modelo_entrenado)
-    return error_cuadrado_promedio
+    return error_cuadrado_promedio# }}}
 
-validacion = evaluacion(x_v_norm,W,z_v)
-print(f'validacion con outputs no normalizados: {validacion}')
+error_cuadrado_no_normalizado_validacion = evaluacion(x_v_norm,W,z_v)
+
+print(f'error cuadrado con outputs no normalizados: \
+{error_cuadrado_no_normalizado_validacion}')
+
+
+'''
+esta función es análoga a evaluacion, pero utilizando outputs de la red (y por
+ende objetivos) normalizados. Al igual que en el caso anterior, inputs
+normalizados.
+'''
+def evaluacion_normalizada(x_eval,pesos,objetivo_eval):# {{{
+    output_modelo_entrenado_norm = forward(x_eval,pesos)[L-1]
+    error_cuadrado_promedio_norm = estimation(objetivo_eval,\
+                                   output_modelo_entrenado_norm)
+    return error_cuadrado_promedio_norm# }}}
+validacion_normalizada = evaluacion_normalizada(x_v_norm,W,z_v_norm)
+
+print(f'error cuadrado con outputs normalizados: {validacion_normalizada}')
+
 
 # }}}
 
@@ -304,7 +297,8 @@ plt.legend()
 plt.show()
 # }}}
 
-# {{{ exportar modelo (lista de pesos W) a archivo filename_modelo
+# {{{ exportar modelo (lista de pesos W) a archivo filename_modelo \
+# y utilizar las funciones de evaluación del modelo
 if args.exportar==True:
     np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
 else:
@@ -318,6 +312,16 @@ de entrenar un modelo nuevo:
 
 np.load('filename_modelo.npz',allow_pickle=True)['W']
 
+Si, entonces, se desea evaluar W con datos de testeo, se puede hacer:
+evaluacion_normalizada(x_testeo_normalizado,W,z_testeo_normalizado)
+
+donde W puede ser ya sea una lista de matrices producto del entrenamiento
+llevado a cabo en este script, como las matrices entrenadas que fueron
+entregadas aparte.
+
+Si, en vez de evaluar el rendimiento, se desea tener el output del modelo con
+ciertos datos nuevos:
+forward(x_datos_normalizados,W,True)
 
 '''
 # }}}
