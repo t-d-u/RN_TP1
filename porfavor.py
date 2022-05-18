@@ -35,32 +35,81 @@ args=parser.parse_args()
 data = pd.read_csv(args.filename_datos,header=None)
 
 data = np.random.permutation(np.array(data))
-def min_max_norm(datos):
-    max_cols = datos.max(axis=0)
-    min_cols = datos.min(axis=0)
-    data = (datos - min_cols)/(max_cols - min_cols)
-    return data,max_cols,min_cols
-data_normalizada,max_cols,min_cols = min_max_norm(data)
-#pedir las columnas sirve para usarlas para normalizar el output
-#de la red con los mins y maxs del objetivo:
-maximos_objetivo = max_cols[-2:]
-minimos_objetivo = min_cols[-2:]
-#ojo: estoy usando el mismo max y min para train y valid.
 
-def train_valid_split(datos):
+# {{{ separar en train y valid
+def train_valid_split(datos):# {{{
     datos_train = datos[:int(3*len(datos)/4),:]
     datos_valid = datos[int(3*len(datos)/4):,:]
-    return datos_train, datos_valid
-datos_train, datos_valid = train_valid_split(data_normalizada)
+    return datos_train, datos_valid# }}}
+datos_train, datos_valid = train_valid_split(data)
+# }}}
 
-x_train = datos_train[:,:-2]
-z_train = datos_train[:,-2:]
+# separar en x y z {{{
+x_train, z_train = datos_train[:,:-2], datos_train[:,-2:]
+x_v, z_v = datos_valid[:,:-2], datos_valid[:,-2:]
+# }}}
 
-x_v = datos_valid[:,:-2]
-z_v = datos_valid[:,-2:]
-objetivo_desnormalizado = z_v*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+# normalizaciones {{{
+# vectores utiles {{{
+minimos_x_train = x_train.min(axis=0)
+maximos_x_train = x_train.max(axis=0)
+minimos_z_train = z_train.min(axis=0)
+maximos_z_train = z_train.max(axis=0)
 
+minimos_x_v = x_v.min(axis=0)
+maximos_x_v = x_v.max(axis=0)
+minimos_z_v = z_v.min(axis=0)
+maximos_z_v = z_v.max(axis=0)
+# }}}
+
+def min_max_norm(datos,minimo,maximo):# {{{
+    data_normalizada = (datos - minimo)/(maximo - minimo)
+    return data_normalizada# }}}
+
+# subsets normalizados {{{
+x_train_norm = min_max_norm(x_train,minimos_x_train,maximos_x_train)
+z_train_norm = min_max_norm(z_train,minimos_z_train,maximos_z_train)
+
+x_v_norm = min_max_norm(x_v,minimos_x_v,maximos_x_v)
+z_v_norm = min_max_norm(z_v,minimos_z_v,maximos_z_v)
+ # }}}
+
+def desnormalizar(datos,minimos,maximos):
+    return datos*(maximos - minimos) + minimos
+
+
+# }}}
+
+'''el bardo anterior que en realidad anda bien'''
+#def min_max_norm(datos):# {{{
+#    max_cols = datos.max(axis=0)
+#    min_cols = datos.min(axis=0)
+#    data = (datos - min_cols)/(max_cols - min_cols)
+#    return data,max_cols,min_cols
+#data_normalizada,max_cols,min_cols = min_max_norm(data)
+##pedir las columnas sirve para usarlas para normalizar el output
+##de la red con los mins y maxs del objetivo:
+#maximos_objetivo = max_cols[-2:]
+#minimos_objetivo = min_cols[-2:]
+##ojo: estoy usando el mismo max y min para train y valid.
+#
+#
+#def desnormalizar(datos,minimos,maximos):
+#    return datos*(maximos - minimos) + minimos
+#
+#def train_valid_split(datos):
+#    datos_train = datos[:int(3*len(datos)/4),:]
+#    datos_valid = datos[int(3*len(datos)/4):,:]
+#    return datos_train, datos_valid
+#datos_train, datos_valid = train_valid_split(data_normalizada)
+#
+#x_train = datos_train[:,:-2]
+#z_train = datos_train[:,-2:]
+#
+#x_v = datos_valid[:,:-2]
+#z_v = datos_valid[:,-2:]
+#objetivo_desnormalizado = desnormalizar(z_v,minimos_objetivo,maximos_objetivo)
+# }}}
 
 
 # }}}
@@ -110,10 +159,11 @@ def forward(Xh,W,predict=False):# {{{
         Y_temp = activation(Y[k-1]@W[k])
     Y[L-2][:] = bias_add(Y_temp)
     Y_temp = Y[L-2]@W[L-1] #unidad lineal
-    Y[L-1] = (Y_temp - minimos_objetivo)/(maximos_objetivo-minimos_objetivo)
+    # Y[L-1] = (Y_temp - minimos_objetivo)/(maximos_objetivo-minimos_objetivo)
+    Y[L-1] = min_max_norm(Y_temp,minimos_z_train,maximos_z_train)
     #output normalizado
     if predict:
-        return Y[L-1]
+        return Y_temp #porque Y_temp no está normalizado.
 
     return Y# }}}
 
@@ -188,36 +238,39 @@ while t<args.epocas:
     H = np.random.permutation(P)
     for batch in range(0,P,B):
 
-        x_batch = x_train[H[ batch : batch+B ]]
+        x_batch_norm = x_train_norm[H[ batch : batch+B ]]
+        z_batch_norm = z_train_norm[H[ batch : batch+B ]]
         z_batch = z_train[H[ batch : batch+B ]]
 
-        Y = forward(x_batch,W)
+        Y = forward(x_batch_norm,W)
 
-        # c+=estimation(z_batch,Y[L-1])
-        output_desnormalizado = Y[L-1]*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+        '''
+        a continuación desnormalizo el output del forward con los mismos mins y
+        maxs con los que normalicé, y calculo error con z_batch no normalizados
+        '''
+        # output_desnormalizado = desnormalizar(Y[L-1],minimos_z_train,\
+                                # maximos_z_train)
+        output_desnormalizado = forward(x_batch_norm,W,True)
 
-        # cost_batch.append(estimation(z_batch,Y[L-1]))
-        z_batch_desnorm = z_batch*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
-        cost_batch.append(estimation(z_batch_desnorm,output_desnormalizado))
+        #guardo el error no normalizado
+        cost_batch.append(estimation(z_batch,output_desnormalizado))
 
-        # estimation del batch
-
-        dw = backprop_momento(Y,z_batch,W,dw)
+        dw = backprop_momento(Y,z_batch_norm,W,dw)
         W = adaptation(W,dw)
 
-    # costo_epoca.append((c)/(P/B))
     cost_epoca.append(np.mean(cost_batch))
 
     cost_batch=[]
-    # error_val.append(estimation(z_v,forward(x_v,W,True)))
-    valid_desnorm = forward(x_v,W,True)*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+    '''
+    a continuación hago un paso forward normalizando el output de la red
+    con los mins y maxs de z_v
+    desnormalizo el output de la red en la validación con los
+    mins y maxs de z_v
+    '''
+    # output_valid = desnormalizar(forward(x_v,W,True),minimos_z_v,maximos_z_v)
+    output_valid = forward(x_v_norm,W,True)
 
-    error_val.append(estimation(objetivo_desnormalizado,valid_desnorm))
-    # yvalid = forward(x_v,W,True)
-    # print(yvalid)
+    error_val.append(estimation(z_v,output_valid))
     t+=1
 # }}}
 
@@ -226,35 +279,17 @@ while t<args.epocas:
 # evaluacion {{{
 '''
 esta función puede ser utilizada para evaluar el modelo entregado con los datos
-de testeo (separando objetivos de variables independientes en "datos_eval" y
-"objetivo")
-
+de testeo (separando objetivos de variables independientes en "x_eval" y
+"objetivo_eval"). El output de la función evaluacion llamada con el test set
+se puede comparar con el output de la función llamada con el set de validación.
 '''
-def evaluacion(datos_eval,pesos,objetivo):
-    output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
-    # proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
-                       # len(output_modelo_entrenado)
-    output_desnormalizado = output_modelo_entrenado*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
-    objetivo_desnormalizado = objetivo*(maximos_objetivo - \
-                            minimos_objetivo) + minimos_objetivo
+def evaluacion(x_eval,pesos,objetivo_eval):
+    output_modelo_entrenado = forward(x_eval,pesos,predict=True)
+    error_cuadrado_promedio = estimation(objetivo_eval,output_modelo_entrenado)
+    return error_cuadrado_promedio
 
-    error= estimation(objetivo_desnormalizado,output_desnormalizado)
-    # error = estimation(objetivo,output_modelo_entrenado)
-    return error
-
-'''
-la validación en este caso consiste en hacer un promedio de los errores
-cuadrados de cada patrón. es necesario hacerlo con los datos desnormalizados.
-'''
-# datos_train_originales, datos_valid_originales = train_valid_split(data)
-# x_v_originales = datos_valid_originales[:,:-2]
-# z_v_originales = datos_valid_originales[:,-2:]
-# validacion = evaluacion(x_v_originales,W,z_v_originales)
-
-#con los datos sin normalizar:
-validacion = evaluacion(x_v,W,z_v)
-print(f'validacion con datos no normalizados: {validacion}')
+validacion = evaluacion(x_v_norm,W,z_v)
+print(f'validacion con outputs no normalizados: {validacion}')
 
 # }}}
 

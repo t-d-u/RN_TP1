@@ -17,8 +17,8 @@ parser=argparse.ArgumentParser(formatter_class=\
 parser.add_argument('--filename_datos',default='tp1_ej1_training.csv',help='el\
                     procesamiento de los datos en el script fue realizado \
                     utilizando un .csv con los targets en la primera columna')
-parser.add_argument('--filename_modelo',default='weights',help='nombre del \
-                    archivo que es exportado y contiene el modelo entrenado')
+parser.add_argument('--filename_modelo',default='weights_ej_1',help='nombre \
+                    de archivo que es exportado y contiene el modelo entrenado')
 parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
                     separados por coma, sin espacios ni []',default='5')
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
@@ -56,14 +56,10 @@ def datos(data):
 
     z = z.reshape(410,1)
 
-    # x_v = x[300:]
     x_v = x[int(3*len(x)/4):]
-    # x_train = x[:300]
     x_train = x[:int(3*len(x)/4)]
 
-    # z_v = z[300:]
     z_v = z[int(3*len(z)/4):]
-    # z_train = z[:300]
     z_train = z[:int(3*len(z)/4)]
     return x,x_train,x_v,z_train,z_v
 x,x_train,x_v,z_train,z_v = datos(data)
@@ -205,10 +201,8 @@ while t<args.epocas:
 
         Y = forward(x_batch,W)
 
-        # c+=estimation(z_batch,Y[L-1])
         cost_batch.append(estimation(z_batch,Y[L-1]))
-        # estimation del batch
-
+        #se appendea el cost del batch: la media de los errores cuadrados
         dw = backprop_momento(Y,z_batch,W,dw)
         W = adaptation(W,dw)
 
@@ -217,6 +211,7 @@ while t<args.epocas:
 
     cost_batch=[]
     error_val.append(estimation(z_v,forward(x_v,W,True)))
+    #hacer un paso forward y appendear la media de los errores cuadrados
     t+=1
 # }}}
 
@@ -229,9 +224,9 @@ de testeo (separando objetivos de variables independientes en "datos_eval" y
 "objetivo")
 
 '''
-def evaluacion(datos_eval,pesos,objetivo):
-    output_modelo_entrenado = forward(datos_eval,pesos,predict=True)
-    proporcion = (objetivo==np.round(output_modelo_entrenado)).sum() / \
+def evaluacion(x_eval,pesos,objetivo_eval):
+    output_modelo_entrenado = forward(x_eval,pesos,predict=True)
+    proporcion = (objetivo_eval==np.round(output_modelo_entrenado)).sum() / \
                        len(output_modelo_entrenado)
     print(f'proporción de aciertos: {proporcion}')
 validacion = evaluacion(x_v,W,z_v)
