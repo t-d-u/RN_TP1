@@ -53,7 +53,7 @@ def datos(data):  # {{{
 
 
     x = x.astype(float)
-    x = (x-x.mean(0))/np.square(x.std(0))
+    estandarizacion = lambda x: (x-x.mean(0))/np.square(x.std(0))
     # x = min_max_norm(x,x.min(axis=0),x.max(axis=0))
 
 
@@ -66,8 +66,8 @@ def datos(data):  # {{{
 
     z = z.reshape(410,1)
 
-    x_v = x[int(3*len(x)/4):]
-    x_train = x[:int(3*len(x)/4)]
+    x_v = estandarizacion(x[int(3*len(x)/4):])
+    x_train = estandarizacion(x[:int(3*len(x)/4)])
 
     z_v = z[int(3*len(z)/4):]
     z_train = z[:int(3*len(z)/4)]
