@@ -189,8 +189,9 @@ def estimation(z,outputs):# {{{
     return np.mean(np.square(z-outputs))# }}}
 # }}}
 
+
 #init training# {{{
-B = P
+# B = P
 lr = args.lr
 costo_epoca=[]
 error_val=[]
@@ -199,32 +200,45 @@ cost_batch=[]
 cost_epoca=[]
 # }}}
 
-# batch train{{{
 
-# while t<300000:
-while t<args.epocas:
-    c = 0
-    H = np.random.permutation(P)
-    for batch in range(0,P,B):
+def train(W=W, dw=dw, epocas=args.epocas, b=P):  # {{{
 
-        x_batch = x_train[H[ batch : batch+B ]]
-        z_batch = z_train[H[ batch : batch+B ]]
 
-        Y = forward(x_batch,W)
-
-        cost_batch.append(estimation(z_batch,Y[L-1]))
-        #se appendea el cost del batch: la media de los errores cuadrados
-        dw = backprop_momento(Y,z_batch,W,dw)
-        W = adaptation(W,dw)
-
-    # costo_epoca.append((c)/(P/B))
-    cost_epoca.append(np.mean(cost_batch))
-
+    #init training# {{{
+    lr = args.lr
+    error_val=[]
+    t=0
     cost_batch=[]
-    error_val.append(estimation(z_v,forward(x_v,W,True)))
-    #hacer un paso forward y appendear la media de los errores cuadrados
-    t+=1
+    cost_epoca=[]
+    # }}}
+
+    while t<epocas: # {{{
+        H = np.random.permutation(P)
+        for batch in range(0,P,b):
+
+            x_batch = x_train[H[ batch : batch+b ]]
+            z_batch = z_train[H[ batch : batch+b ]]
+
+            Y = forward(x_batch,W)
+
+            cost_batch.append(estimation(z_batch,Y[L-1]))
+            #se appendea el cost del batch: la media de los errores cuadrados
+            dw = backprop_momento(Y,z_batch,W,dw)
+            W = adaptation(W,dw)
+            # }}}
+
+        cost_epoca.append(np.mean(cost_batch))
+
+        cost_batch = []
+        error_val.append(estimation(z_v, forward(x_v, W, True)))
+        # hacer un paso forward y appendear la media de los errores cuadrados
+        t += 1
+    return W, cost_epoca, error_val
+
 # }}}
+
+
+W, cost_epoca, error_val = train()
 
 # }}}
 
