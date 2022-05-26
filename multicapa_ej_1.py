@@ -24,8 +24,8 @@ parser.add_argument('--S', help='Nodos por capa sin contar entrada ni salida,\
 parser.add_argument('--lr', help='learning rate',type=float,default=0.01)
 parser.add_argument('--activation', help='tanh o sigmoid',default='sigmoid')
 parser.add_argument('--alfa_momento', help='entre 0 y 1',default=0.9,type=float)
-parser.add_argument('--epocas', default=8000,type=int)
-parser.add_argument('--exportar',default=True,help='si el usuario desea \
+parser.add_argument('--epocas', default=3000,type=int)
+parser.add_argument('--exportar',default=False,help='si el usuario desea \
                     exportar el modelo entrenado al archivo filename_modelo.npz')
 # parser.add_argument('--B',help='batch size',default='P')
 args=parser.parse_args()
@@ -202,9 +202,11 @@ cost_epoca=[]
 # batch train{{{
 
 # while t<300000:
+# %%
 while t<args.epocas:
     c = 0
     H = np.random.permutation(P)
+    # H = np.random.permutation(P)
     for batch in range(0,P,B):
 
         x_batch = x_train[H[ batch : batch+B ]]
@@ -224,6 +226,8 @@ while t<args.epocas:
     error_val.append(estimation(z_v,forward(x_v,W,True)))
     #hacer un paso forward y appendear la media de los errores cuadrados
     t+=1
+    # print(t)
+# %%
 # }}}
 
 # }}}
@@ -254,22 +258,4 @@ plt.ylabel('costo')
 plt.yticks(fontsize=20)
 plt.legend(prop={'size': 30})
 plt.show()
-# }}}
-
-# {{{ exportar modelo (lista de pesos W) a archivo filename_modelo
-if args.exportar==True:
-    np.savez(f'{args.filename_modelo}.npz',W=np.array(W,dtype=object))
-else:
-    pass
-
-
-'''
-
-para cargar las matrices que queden almacenadas en filename_modelo.npz luego
-de entrenar un modelo nuevo:
-
-np.load('filename_modelo.npz',allow_pickle=True)['W']
-
-
-'''
 # }}}
